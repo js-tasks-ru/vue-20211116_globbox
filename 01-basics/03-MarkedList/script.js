@@ -1,5 +1,3 @@
-// import { createApp } from './vendor/vue.esm-browser.js';
-
 import { createApp, defineComponent } from './vendor/vue.esm-browser.js';
 
 const emails = [
@@ -41,7 +39,7 @@ const RootComponent = defineComponent({
   computed: {
     filteredEmails: function () {
       let me = this;
-      return this.emails.map(function(email) {
+      return this.emails.map((email) => {
         let cssClass = '';
         if (me.searchQuery !== '' && me.containsString(email, me.searchQuery)) {
           cssClass = 'marked';
@@ -61,9 +59,7 @@ const RootComponent = defineComponent({
      * @return {boolean}
      */
     containsString: function (target, searchString) {
-      target = target.toLowerCase();
-      searchString = searchString.toLowerCase();
-      return target.includes(searchString);
+      return target.toLowerCase().includes(searchString.toLowerCase());
     },
   },
 });
