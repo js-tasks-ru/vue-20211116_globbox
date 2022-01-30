@@ -1,17 +1,19 @@
-<!-- STUB: ЭТО ЗАГЛУШКА ДЛЯ РУЧНОГО ТЕСТИРОВАНИЯ -->
-<!-- ВЫ МОЖЕТЕ ИСПОЛЬЗОВАТЬ ПОЛНУЮ ВЕРСИЮ КОМПОНЕНТА, ЕСЛИ УЖЕ РЕАЛИЗОВАЛИ ЕГО -->
-
 <template>
   <div class="image-uploader">
-    <label class="image-uploader__preview" :style="src && `--bg-url: url('${src}')`" @click.stop.prevent="handleClick">
-      <span class="image-uploader__text">{{ src ? 'Удалить' : 'Загрузить изображение' }}</span>
+    <label
+      class="image-uploader__preview"
+      :class="{ 'image-uploader__preview-loading': loading }"
+      :style="currentPreview && { '--bg-url': `url(${currentPreview})` }"
+      @click="imageClick"
+    >
+      <span class="image-uploader__text">{{ currentUploadText }}</span>
       <input
         ref="input"
         type="file"
         accept="image/*"
         class="image-uploader__input"
         v-bind="$attrs"
-        @change="mockFileSelect"
+        @change="changeImage"
       />
     </label>
   </div>
@@ -21,46 +23,90 @@
 export default {
   name: 'UiImageUploader',
   inheritAttrs: false,
-
   props: {
-    uploader: {
-      type: Function,
-    },
-
     preview: {
       type: String,
     },
+    uploader: {
+      type: Function,
+    },
   },
-
-  emits: ['upload', 'select', 'error', 'remove'],
-
+  emits: [
+    'select',
+    'upload',
+    'remove',
+    'error'
+  ],
   data() {
     return {
-      src: this.preview,
+      currentPreview: this.preview,
+      previewToRevoke: false,
+      loading: false,
     };
   },
-
+  computed: {
+    currentState() {
+      if (this.loading) return 'loading';
+      if (this.currentPreview) return 'preview';
+      return 'empty';
+    },
+    currentUploadText() {
+      const uploaderStateTexts = {
+        loading: 'Загрузка...',
+        preview: 'Удалить изображение',
+        empty: 'Загрузить изображение',
+      };
+      return uploaderStateTexts[this.currentState];
+    },
+  },
+  unmounted() {
+    this.previewRevoke();
+  },
   methods: {
-    mockFileSelect() {
-      this.src = 'https://course-vue.javascript.ru/api/images/1';
-      const file = new File(['abc'], 'abc.jpeg', {
-        type: 'image/jpeg',
-      });
-      this.$emit('select', this.$refs.input.files[0] || file);
-    },
-
-    mockRemoveFile() {
-      this.src = null;
-      this.$refs.input.value = '';
-      this.$emit('remove');
-    },
-
-    handleClick() {
-      if (this.src && this.src !== this.preview) {
-        this.mockRemoveFile();
+    changeImage($event) {
+      this.previewRevoke();
+      const file = $event.target.files[0];
+      this.$emit('select', file);
+      if (this.uploader) {
+        this.upload(file);
       } else {
-        this.mockFileSelect();
+        this.createPreview(file);
       }
+    },
+    imageClick($event) {
+      if (this.currentState === 'preview') {
+        $event.preventDefault();
+        this.delete();
+        this.$emit('remove');
+      }
+    },
+    upload(file) {
+      this.loading = true;
+      this.uploader(file)
+        .then((response) => {
+          this.loading = false;
+          this.currentPreview = response.image;
+          this.$emit('upload', response);
+        })
+        .catch((error) => {
+          this.delete();
+          this.loading = false;
+          this.$emit('error', error);
+        });
+    },
+    delete() {
+      this.currentPreview = null;
+      this.$refs.input.value = null;
+    },
+    createPreview(file) {
+      this.currentPreview = URL.createObjectURL(file);
+      this.previewToRevoke = true;
+    },
+    previewRevoke() {
+      if (this.previewToRevoke) {
+        URL.revokeObjectURL(this.currentPreview);
+      }
+      this.previewToRevoke = false;
     },
   },
 };

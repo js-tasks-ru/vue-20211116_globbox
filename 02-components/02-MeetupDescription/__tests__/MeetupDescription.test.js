@@ -22,3 +22,6 @@ describe('components/MeetupDescription', () => {
     });
   });
 });
+
+т
+new Promise()
