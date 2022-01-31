@@ -1,10 +1,18 @@
 <template>
-  <a class="link">Link!</a>
+  <component :is="tag" class="link">
+    <slot />
+  </component>
 </template>
 
 <script>
 export default {
   name: 'UiLink',
+  props: {
+    tag: {
+      type: [String, Object],
+      default: 'router-link',
+    },
+  },
 };
 </script>
 
@@ -13,7 +21,6 @@ export default {
   color: var(--blue);
   text-decoration: none;
 }
-
 .link:hover {
   text-decoration: underline;
 }

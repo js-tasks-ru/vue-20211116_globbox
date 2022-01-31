@@ -1,36 +1,34 @@
 <template>
   <fieldset class="agenda-item-form">
-    <button type="button" class="agenda-item-form__remove-button">
+    <button type="button" class="agenda-item-form__remove-button" @click.prevent="$emit('remove')">
       <ui-icon icon="trash" />
     </button>
 
     <ui-form-group>
-      <ui-dropdown title="Тип" :options="$options.agendaItemTypeOptions" name="type" />
+      <ui-dropdown v-model="currentAgendaItem.type" title="Тип" :options="$options.agendaItemTypeOptions" name="type" />
     </ui-form-group>
 
     <div class="agenda-item-form__row">
       <div class="agenda-item-form__col">
         <ui-form-group label="Начало">
-          <ui-input type="time" placeholder="00:00" name="startsAt" />
+          <ui-input v-model="startsAt" type="time" placeholder="00:00" name="startsAt" />
         </ui-form-group>
       </div>
       <div class="agenda-item-form__col">
         <ui-form-group label="Окончание">
-          <ui-input type="time" placeholder="00:00" name="endsAt" />
+          <ui-input v-model="currentAgendaItem.endsAt" type="time" placeholder="00:00" name="endsAt" />
         </ui-form-group>
       </div>
     </div>
 
-    <ui-form-group label="Заголовок">
-      <ui-input name="title" />
-    </ui-form-group>
-    <ui-form-group label="Описание">
-      <ui-input multiline name="description" />
+    <ui-form-group v-for="(value, name, index) in schema" :key="index" :label="value.label">
+      <component :is="value.component" v-model="currentAgendaItem[name]" :name="name" v-bind="value.props" />
     </ui-form-group>
   </fieldset>
 </template>
 
 <script>
+import moment from 'moment';
 import UiIcon from './UiIcon';
 import UiFormGroup from './UiFormGroup';
 import UiInput from './UiInput';
@@ -46,7 +44,6 @@ const agendaItemTypeIcons = {
   afterparty: 'cal-sm',
   other: 'cal-sm',
 };
-
 const agendaItemDefaultTitles = {
   registration: 'Регистрация',
   opening: 'Открытие',
@@ -57,19 +54,16 @@ const agendaItemDefaultTitles = {
   talk: 'Доклад',
   other: 'Другое',
 };
-
 const agendaItemTypeOptions = Object.entries(agendaItemDefaultTitles).map(([type, title]) => ({
   value: type,
   text: title,
   icon: agendaItemTypeIcons[type],
 }));
-
 const talkLanguageOptions = [
   { value: null, text: 'Не указано' },
   { value: 'RU', text: 'RU' },
   { value: 'EN', text: 'EN' },
 ];
-
 /**
  * @typedef FormItemSchema
  * @property {string} label
@@ -79,7 +73,6 @@ const talkLanguageOptions = [
 /** @typedef {string} AgendaItemField */
 /** @typedef {string} AgendaItemType */
 /** @typedef {Object.<AgendaItemType, FormItemSchema>} FormSchema */
-
 /** @type FormSchema */
 const commonAgendaItemFormSchema = {
   title: {
@@ -90,7 +83,6 @@ const commonAgendaItemFormSchema = {
     },
   },
 };
-
 /** @type {Object.<AgendaItemField, FormSchema>} */
 const agendaItemFormSchemas = {
   registration: commonAgendaItemFormSchema,
@@ -150,20 +142,48 @@ const agendaItemFormSchemas = {
     },
   },
 };
-
 export default {
   name: 'MeetupAgendaItemForm',
-
   components: { UiIcon, UiFormGroup, UiInput, UiDropdown },
-
   agendaItemTypeOptions,
   agendaItemFormSchemas,
-
   props: {
     agendaItem: {
       type: Object,
       required: true,
     },
+  },
+  emits: ['update:agendaItem', 'remove'],
+  data() {
+    return {
+      currentAgendaItem: { ...this.agendaItem },
+      startsAt: this.agendaItem.startsAt,
+    };
+  },
+  computed: {
+    schema() {
+      return agendaItemFormSchemas[this.currentAgendaItem.type];
+    },
+  },
+  watch: {
+    currentAgendaItem: {
+      deep: true,
+      handler() {
+        this.$emit('update:agendaItem', { ...this.currentAgendaItem });
+      },
+    },
+    startsAt: {
+      handler(newValue, oldValue) {
+        this.currentAgendaItem.startsAt = newValue;
+        if (this.getCurrentTime(oldValue) && this.getCurrentTime(this.currentAgendaItem.endsAt)) {
+          const diffTime = this.getCurrentTime(newValue).diff(this.getCurrentTime(oldValue));
+          this.currentAgendaItem.endsAt = moment(this.getCurrentTime(this.currentAgendaItem.endsAt) + diffTime).format('HH:mm');
+        }
+      },
+    },
+  },
+  methods: {
+    getCurrentTime: (value) => moment(value,'h:mm a'),
   },
 };
 </script>
@@ -175,7 +195,6 @@ export default {
   position: relative;
   padding: 20px 10% 0 16px;
 }
-
 .agenda-item-form__remove-button {
   position: absolute;
   top: 4px;
@@ -188,49 +207,39 @@ export default {
   cursor: pointer;
   transition: 0.2s opacity;
 }
-
 .agenda-item-form__remove-button:hover {
   opacity: 0.6;
 }
-
 .agenda-item-form__row {
   display: flex;
   flex-direction: column;
 }
-
 .agenda-item-form__col + .agenda-item-form__col {
   margin-top: 16px;
 }
-
 .agenda-item-form__col:first-child {
   margin-left: 0;
 }
-
 @media all and (min-width: 992px) {
   .agenda-item-form {
     padding: 28px 25% 4px 24px;
   }
-
   .agenda-item-form__remove-button {
     top: 20px;
     right: 20px;
   }
-
   .agenda-item-form__row {
     flex-direction: row;
     justify-content: space-between;
     margin: 0 -12px;
   }
-
   .agenda-item-form__col {
     flex: 1 1 auto;
     padding: 0 12px;
   }
-
   .agenda-item-form__col + .agenda-item-form__col {
     margin-top: 0;
   }
-
   .agenda-item-form__col:first-child {
     margin-left: 0;
   }

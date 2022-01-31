@@ -1,8 +1,20 @@
 <template>
   <div class="image-uploader">
-    <label class="image-uploader__preview image-uploader__preview-loading" style="--bg-url: url('/link.jpeg')">
-      <span class="image-uploader__text">Загрузить изображение</span>
-      <input type="file" accept="image/*" class="image-uploader__input" />
+    <label
+      class="image-uploader__preview"
+      :class="{ 'image-uploader__preview-loading': loading }"
+      :style="currentPreview && { '--bg-url': `url(${currentPreview})` }"
+      @click="imageClick"
+    >
+      <span class="image-uploader__text">{{ currentUploadText }}</span>
+      <input
+        ref="input"
+        type="file"
+        accept="image/*"
+        class="image-uploader__input"
+        v-bind="$attrs"
+        @change="changeImage"
+      />
     </label>
   </div>
 </template>
@@ -10,6 +22,93 @@
 <script>
 export default {
   name: 'UiImageUploader',
+  inheritAttrs: false,
+  props: {
+    preview: {
+      type: String,
+    },
+    uploader: {
+      type: Function,
+    },
+  },
+  emits: [
+    'select',
+    'upload',
+    'remove',
+    'error'
+  ],
+  data() {
+    return {
+      currentPreview: this.preview,
+      previewToRevoke: false,
+      loading: false,
+    };
+  },
+  computed: {
+    currentState() {
+      if (this.loading) return 'loading';
+      if (this.currentPreview) return 'preview';
+      return 'empty';
+    },
+    currentUploadText() {
+      const uploaderStateTexts = {
+        loading: 'Загрузка...',
+        preview: 'Удалить изображение',
+        empty: 'Загрузить изображение',
+      };
+      return uploaderStateTexts[this.currentState];
+    },
+  },
+  unmounted() {
+    this.previewRevoke();
+  },
+  methods: {
+    changeImage($event) {
+      this.previewRevoke();
+      const file = $event.target.files[0];
+      this.$emit('select', file);
+      if (this.uploader) {
+        this.upload(file);
+      } else {
+        this.createPreview(file);
+      }
+    },
+    imageClick($event) {
+      if (this.currentState === 'preview') {
+        $event.preventDefault();
+        this.delete();
+        this.$emit('remove');
+      }
+    },
+    upload(file) {
+      this.loading = true;
+      this.uploader(file)
+        .then((response) => {
+          this.loading = false;
+          this.currentPreview = response.image;
+          this.$emit('upload', response);
+        })
+        .catch((error) => {
+          this.delete();
+          this.loading = false;
+          this.$emit('error', error);
+        });
+    },
+    delete() {
+      this.currentPreview = null;
+      this.$refs.input.value = null;
+    },
+    createPreview(file) {
+      this.currentPreview = URL.createObjectURL(file);
+      this.previewToRevoke = true;
+    },
+    previewRevoke() {
+      if (this.previewToRevoke) {
+        URL.revokeObjectURL(this.currentPreview);
+      }
+      this.previewToRevoke = false;
+    },
+  },
 };
 </script>
 
